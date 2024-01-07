@@ -1,0 +1,20 @@
+version: '3.5'
+
+services:
+  hands-on-202401:
+    container_name: hands-on-202401
+    build:
+      context: .
+      target: build-env
+      dockerfile: ./Dockerfile
+      args:
+        BUILD_ENV: local
+    volumes:
+      - ./:/go/src/github.com/sendaigo/hands-on-202401
+      - ./data:/data # SQLiteデータベースファイルをマウントするディレクトリ
+    command: air
+    ports:
+      - 80:80   # http
+      - 2345:2345 # dlv
+
+#　sqliteはサーバーを必要としないためdocker-composeでの構築は不要
