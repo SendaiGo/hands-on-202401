@@ -1,0 +1,12 @@
+# Idea
+.idea/
+*.iml
+
+# vscode
+.vscode/
+
+# temp
+tmp
+
+# .DS_Store
+.DS_Store
