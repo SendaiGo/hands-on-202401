@@ -2,16 +2,16 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"net/http"
 
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
 	// データベースのファイルパスの設定
-	dbPath := "../../data/sqlite3.db"
+	dbPath := "data/sqlite3.db"
 
 	// データベースのオープン
 	db, err := sql.Open("sqlite3", dbPath)
@@ -20,19 +20,42 @@ func main() {
 	}
 	defer db.Close()
 
-	// ハンドラの登録
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		slice := make([]string, 0, 10)
-		for _, v := range []string{"a", "b", "c"} {
-			slice = append(slice, fmt.Sprintf("%d", v))
-		}
-		fmt.Fprint(w, "Hello, World!")
+	e := echo.New()
+
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	// ルーティング
+	e.GET("/", func(c echo.Context) error {
+		return c.File("public/index.html")
 	})
 
-	// サーバーの起動
-	log.Println("start http server :80")
-	err = http.ListenAndServe(":80", nil)
-	if err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	// TODOのCRUD処理
+	// Create
+	e.POST("/todo", func(c echo.Context) error {
+		return create(c, db)
+	})
+
+	// ReadAll
+	e.GET("/todo", func(c echo.Context) error {
+		return readAll(c, db)
+	})
+	// Read
+	e.GET("/todo/:id", func(c echo.Context) error {
+		return read(c, db)
+	})
+
+	// Update
+	e.PUT("/todo/:id", func(c echo.Context) error {
+		return update(c, db)
+	})
+
+	// Delete
+	e.DELETE("/todo/:id", func(c echo.Context) error {
+		return delete(c, db)
+	})
+
+	// サーバー起動
+	e.Logger.Fatal(e.Start(":80"))
 }

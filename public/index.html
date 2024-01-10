@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Todo App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+        }
+        #new-task {
+            width: 80%;
+            padding: 10px;
+        }
+        #add-task {
+            padding: 10px 20px;
+        }
+        .task-list {
+            margin-top: 20px;
+        }
+        .task {
+            background: #f9f9f9;
+            border: 1px solid #e1e1e1;
+            padding: 10px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task button {
+            padding: 5px 5px;
+        }
+        .task input {
+            width: 80%;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Todo List</h1>
+        <input type="text" id="new-task" placeholder="Add a new task" />
+        <button id="add-task">Add Task</button>
+
+        <div class="task-list" id="tasks"></div>
+    </div>
+
+    <script>
+        // ページロード時にタスクを読み込む
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchTasks() // Call the asynchronous fetchTasks function
+                .then(function(tasks) { // Handle the promise resolution
+                    tasks.forEach(function(task) {
+                        setTasks(task); // Add each task
+                    });
+                })
+                .catch(function(error) { // Catch any errors during fetching or processing of tasks
+                    console.error('Error loading tasks:', error);
+                });
+        });
+        
+
+        // 新規タスク追加イベントハンドラーの設定
+        document.getElementById('add-task').addEventListener('click', function() {
+            var taskInput = document.getElementById('new-task');
+            var task = taskInput.value.trim();
+            if(task !== '') {
+                addTask(task);
+                taskInput.value = '';
+                taskInput.focus();
+            }
+        });
+
+        // Taskの初回セット
+        function setTasks(tasks) {
+            var taskList = document.getElementById('tasks');
+            var taskItem = document.createElement('div');
+            taskItem.className = 'task';
+
+            taskItem.innerHTML = `
+                <span>${tasks.task}</span>
+                <button onclick="editTask(this)" data-id="${tasks.id}">Edit</button>
+                <button onclick="removeTask(this)" data-id="${tasks.id}">Delete</button>
+                `;
+            taskList.appendChild(taskItem); 
+        }
+
+        // Taskの追加
+        function addTask(task) {
+            var taskList = document.getElementById('tasks');
+            var taskItem = document.createElement('div');
+            taskItem.className = 'task';
+            
+            // curl -X POST -H "Content-Type: application/json" -d '{"task": "Buy milk"}' localhost/todo
+            fetch('http://localhost/todo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({task: task}),
+            }).then(response => {
+                if (response.ok) {
+                    return response.json(); // または response.text() もしくは response.blob(), etc.
+                } else {
+                    throw new Error('Server responded with an error!');
+                }
+            }).then(data => {
+                console.log('Success:', data);
+                taskItem.innerHTML = `
+                <span>${task}</span>
+                <button onclick="editTask(this)" data-id="${tasks.id}">Edit</button>
+                <button onclick="removeTask(this)" data-id="${data.id}">Delete</button>
+                `;
+                taskList.appendChild(taskItem);
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Taskの取得
+        function fetchTasks() {
+            // curl localhost/todo
+            return fetch('http://localhost/todo')
+                .then(response => {
+                    if (response.ok) {
+                        return response.json(); // または response.text() もしくは response.blob(), etc.
+                    } else {
+                        throw new Error('Server responded with an error!');
+                    }
+                })
+                .then(data => {
+                    console.log('Success:', data);
+                    return data;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        // Taskの編集
+        function editTask(button) {
+            var id = button.dataset.id;
+            var taskItem = button.parentElement;
+            var task = taskItem.querySelector('span');
+            var taskText = task.innerText;
+            var taskInput = document.createElement('input');
+            taskInput.type = 'text';
+            taskInput.value = taskText;
+            taskItem.insertBefore(taskInput, task);
+            taskItem.removeChild(task);
+            button.innerText = 'Save';
+            button.onclick = function() {
+                var newTask = taskInput.value.trim();
+                if(newTask !== '') {
+                    updateTask(id, newTask);
+                }
+            }
+        }
+
+        // Taskの更新
+        function updateTask(id, task) {
+            // curl -X PUT -H "Content-Type: application/json" -d '{"task": "Buy milk"}' localhost/todo/:id
+            fetch('http://localhost/todo/' + id, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({task: task}),
+            }).then(data => {
+                console.log('Success:', data);
+                var taskItem = document.querySelector('[data-id="' + id + '"]').parentElement;
+                var taskInput = taskItem.querySelector('input');
+                taskItem.removeChild(taskInput);
+                var taskSpan = document.createElement('span');
+                taskSpan.innerText = task;
+                var saveButton = taskItem.querySelector('button');
+                taskItem.insertBefore(taskSpan, saveButton);
+                saveButton.innerText = 'Edit';
+                
+                saveButton.onclick = function() {
+                    editTask(saveButton);
+                };
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Taskの削除
+        function removeTask(button) {
+            var id = button.dataset.id;
+
+            // Remove the task item from the list
+            var taskItem = button.parentElement;
+            taskItem.remove();
+            // curl -X DELETE localhost/todo/:id
+            fetch('http://localhost/todo/' + id, {
+                method: 'DELETE'
+            }).then(data => {
+                console.log('Success:', data);
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
