@@ -4,35 +4,43 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
+	// データベースに接続
+	db, err := connectSQLite3()
+	if err != nil {
+		log.Fatalf("failed to open database: %v", err)
+	}
+	defer db.Close() // main関数終了時にデータベース接続をクローズ
+
+	var id int
+	var name string
+
+	// データベースクエリ
+	u := db.QueryRow("SELECT id,name FROM users WHERE id = ?", 1)
+
+	// ユーザー情報の取得
+	if err := u.Scan(&id, &name); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("id: %d, name: %s\n", id, name) // 取得したユーザー情報の出力
+}
+
+// SQlite3の接続
+func connectSQLite3() (*sql.DB, error) {
 	// データベースのファイルパスの設定
-	dbPath := "../../data/sqlite3.db"
+	dbPath := "data/sqlite3.db" // 適宜パスを指定してください
 
 	// データベースのオープン
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
+		return nil, err
 	}
-	defer db.Close()
 
-	// ハンドラの登録
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		slice := make([]string, 0, 10)
-		for _, v := range []string{"a", "b", "c"} {
-			slice = append(slice, fmt.Sprintf("%d", v))
-		}
-		fmt.Fprint(w, "Hello, World!")
-	})
-
-	// サーバーの起動
-	log.Println("start http server :80")
-	err = http.ListenAndServe(":80", nil)
-	if err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	// db.Close()の呼び出しはmain関数内でdeferを使って行う
+	return db, nil
 }
